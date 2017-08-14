@@ -1,0 +1,119 @@
+---
+title: "Reproducible Research Assignment 1"
+author: "Farhan Shakil"
+date: "August 13, 2017"
+output: html_document
+--- 
+Introduction
+
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+The data for this assignment can be downloaded from the course web site:
+
+Dataset: Activity monitoring data [52K]
+The variables included in this dataset are:
+
+steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+date: The date on which the measurement was taken in YYYY-MM-DD format
+interval: Identifier for the 5-minute interval in which measurement was taken
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+Data was downloaded from the Coursera webiste, and unzipped to working directory folder.
+Loading and preprocessing the data
+```{r}
+setwd("C:/Users/Farhan/Documents/R/Data science/Reproducible Research")
+data <- read.csv("activity.csv")
+```
+
+What is mean total number of steps taken per day?
+```{r eval=FALSE }
+library(ggplot2)
+# R code for the mean of total steps taken per day
+total.steps <- tapply(data$steps, data$date, FUN=sum, na.rm=TRUE)
+qplot(total.steps, binwidth=1000, xlab="total number of steps taken each day")
+
+mean(total.steps, na.rm=TRUE)
+# answer for mean [1] 9354.23
+
+median(total.steps, na.rm=TRUE)
+# answer for median [1] 10395
+```
+
+What is the average daily activity pattern?
+```{r}
+# R code to get the average of daily activity patterns
+library(ggplot2)
+averages <- aggregate(x=list(steps=data$steps), by=list(interval=data$interval),
+                      FUN=mean, na.rm=TRUE)
+ggplot(data=averages, aes(x=interval, y=steps)) +
+  geom_line() +
+  xlab("5-minute interval") +
+  ylab("average number of steps taken")
+
+averages[which.max(averages$steps),]
+# answer     interval = 104    steps = 835 206.1698
+```
+
+Imputing missing values
+```{r}
+# R code to insert and/or impute missing values for data showing as NA
+
+missing <- is.na(data$steps)
+table(missing)
+#answer for missing data False = 15264 True = 2304 < this is what needs to be replaced
+
+# R code to replace missing value NA with the mean
+# Replace each missing value with the mean value of its 5-minute interval
+fill.value <- function(steps, interval) {
+  filled <- NA
+  if (!is.na(steps))
+    filled <- c(steps)
+  else
+    filled <- (averages[averages$interval==interval, "steps"])
+  return(filled)
+}
+filled.data <- data
+filled.data$steps <- mapply(fill.value, filled.data$steps, filled.data$interval)
+```
+
+Are there differences in activity patterns between weekdays and weekends?
+```{r}
+# R code to create a plot showing total # of steps taken each day
+# R code to also calculate the mean and median of these steps
+total.steps <- tapply(filled.data$steps, filled.data$date, FUN=sum)
+qplot(total.steps, binwidth=1000, xlab="total number of steps taken each day")
+
+mean(total.steps)
+# answer for mean = [1] 10766.19
+median(total.steps)
+# answer for median = [1] 10766.19
+
+# compared to before replacing NA with mean, the mean and meadian have gone up
+# mean was 9354.23 and median was 10395
+
+
+# R code to show if there was any difference in activity from weekdays to weekend
+weekday.or.weekend <- function(date) {
+  day <- weekdays(date)
+  if (day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
+    return("weekday")
+  else if (day %in% c("Saturday", "Sunday"))
+    return("weekend")
+  else
+    stop("invalid date")
+}
+filled.data$date <- as.Date(filled.data$date)
+filled.data$day <- sapply(filled.data$date, FUN=weekday.or.weekend)
+
+
+# R code to plot average number of steps for weekdays and weekend
+averages <- aggregate(steps ~ interval + day, data=filled.data, mean)
+ggplot(averages, aes(interval, steps)) + geom_line() + facet_grid(day ~ .) +
+  xlab("5-minute interval") + ylab("Number of steps")
+# answer = there is much more activity on the weekends than the weekdays
+# this may be caused by possibly having more leisure time, shopping, or other phsycial activities
+```
+
+
